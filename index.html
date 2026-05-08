@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标位置改变文字颜色</title>
+    <style>
+        :root {
+            --hue: 200;
+            --saturation: 80%;
+            --lightness: 55%;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0d0d0d;
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            cursor: crosshair;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 背景光晕 - 跟随鼠标 */
+        .glow {
+            position: fixed;
+            pointer-events: none;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                    hsla(var(--hue), var(--saturation), var(--lightness), 0.25) 0%,
+                    hsla(var(--hue), var(--saturation), var(--lightness), 0.08) 40%,
+                    transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: background 0.15s ease-out;
+            z-index: 0;
+            will-change: left, top;
+        }
+
+        /* 主容器 */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        /* 大标题 */
+        .hero-title {
+            font-size: clamp(3rem, 8vw, 7rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            transition: color 0.1s ease-out;
+            color: hsl(var(--hue), var(--saturation), var(--lightness));
+            text-shadow: 0 0 80px hsla(var(--hue), var(--saturation), var(--lightness), 0.5),
+                0 0 160px hsla(var(--hue), var(--saturation), var(--lightness), 0.25);
+            will-change: color, text-shadow;
+        }
+
+        /* 副标题 */
+        .subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.8rem);
+            font-weight: 300;
+            letter-spacing: 0.08em;
+            transition: color 0.1s ease-out;
+            color: hsla(var(--hue), var(--saturation), var(--lightness), 0.9);
+            text-shadow: 0 0 40px hsla(var(--hue), var(--saturation), var(--lightness), 0.35);
+            will-change: color, text-shadow;
+        }
+
+        /* 描述文字 */
+        .description {
+            font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+            font-weight: 400;
+            letter-spacing: 0.04em;
+            color: hsla(var(--hue), var(--saturation), var(--lightness), 0.75);
+            transition: color 0.1s ease-out;
+            text-shadow: 0 0 20px hsla(var(--hue), var(--saturation), var(--lightness), 0.25);
+            max-width: 600px;
+            will-change: color, text-shadow;
+        }
+
+        /* 色块指示器 */
+        .color-indicator {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            transition: all 0.1s ease-out;
+            box-shadow: 0 0 40px hsla(var(--hue), var(--saturation), var(--lightness), 0.6),
+                0 0 80px hsla(var(--hue), var(--saturation), var(--lightness), 0.3),
+                inset 0 0 20px rgba(255, 255, 255, 0.15);
+            border: 3px solid rgba(255, 255, 255, 0.25);
+            will-change: background-color, box-shadow, border-color;
+        }
+
+        /* 粒子点 */
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: hsl(var(--hue), var(--saturation), var(--lightness));
+            box-shadow: 0 0 12px hsla(var(--hue), var(--saturation), var(--lightness), 0.8);
+            z-index: 5;
+            animation: particleFade 0.7s ease-out forwards;
+            will-change: transform, opacity;
+        }
+
+        @keyframes particleFade {
+            0% {
+                transform: scale(1.5);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 600px) {
+            .main-container {
+                padding: 20px;
+                gap: 20px;
+            }
+            .color-indicator {
+                width: 44px;
+                height: 44px;
+            }
+            .glow {
+                width: 180px;
+                height: 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 背景光晕 -->
+    <div class="glow" id="glow"></div>
+    <div class="main-container">
+        <h1 class="hero-title" id="heroTitle">大标题</h1>
+        <p class="subtitle" id="subtitle">副标题</p>
+        <p class="description" id="description">内容</p>
+    </div>
+
+    <script>
+        (function() {
+            // DOM 元素
+            const glow = document.getElementById('glow');
+
+            // 当前颜色值
+            let currentHue = 200;
+            let currentSaturation = 80;
+            let currentLightness = 55;
+            let targetHue = 200;
+            let targetSaturation = 80;
+            let targetLightness = 55;
+
+            // 平滑过渡的速度因子 (0-1, 越大越快)
+            const SMOOTH_FACTOR = 0.18;
+
+            // 节流用的时间戳
+            let lastParticleTime = 0;
+            const PARTICLE_THROTTLE = 35; // 毫秒
+
+            /**
+             * 更新 CSS 变量
+             */
+            function updateCSSVariables(h, s, l) {
+                document.documentElement.style.setProperty('--hue', Math.round(h));
+                document.documentElement.style.setProperty('--saturation', Math.round(s) + '%');
+                document.documentElement.style.setProperty('--lightness', Math.round(l) + '%');
+            }
+
+            /**
+             * 生成拖尾粒子
+             */
+            function spawnParticle(x, y) {
+                const now = performance.now();
+                if (now - lastParticleTime < PARTICLE_THROTTLE) return;
+                lastParticleTime = now;
+
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                // 使用当前颜色
+                particle.style.background = `hsl(${Math.round(currentHue)}, ${Math.round(currentSaturation)}%, ${Math.round(currentLightness)}%)`;
+                particle.style.boxShadow =
+                    `0 0 14px hsla(${Math.round(currentHue)}, ${Math.round(currentSaturation)}%, ${Math.round(currentLightness)}%, 0.7)`;
+                document.body.appendChild(particle);
+
+                // 动画结束后移除
+                particle.addEventListener('animationend', () => {
+                    particle.remove();
+                });
+            }
+
+            /**
+             * 鼠标移动处理
+             */
+            function handleMouseMove(e) {
+                const x = e.clientX;
+                const y = e.clientY;
+
+                // 移动光晕
+                glow.style.left = x + 'px';
+                glow.style.top = y + 'px';
+
+                // 根据鼠标位置计算目标颜色
+                // 水平: 色相 0-360
+                targetHue = (x / window.innerWidth) * 360;
+                // 垂直: 亮度 15% - 90% (顶部亮, 底部暗)
+                targetLightness = 90 - (y / window.innerHeight) * 75;
+                // 饱和度 保持较高，微调: 65% - 95%
+                targetSaturation = 65 + (x / window.innerWidth) * 30;
+
+                // 生成粒子
+                spawnParticle(x, y);
+            }
+
+            /**
+             * 触摸移动处理（移动端）
+             */
+            function handleTouchMove(e) {
+                if (e.touches.length > 0) {
+                    const touch = e.touches[0];
+                    handleMouseMove({
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                }
+            }
+
+            /**
+             * 动画循环 - 平滑过渡
+             */
+            function animate() {
+                // 平滑插值
+                currentHue += (targetHue - currentHue) * SMOOTH_FACTOR;
+                currentSaturation += (targetSaturation - currentSaturation) * SMOOTH_FACTOR;
+                currentLightness += (targetLightness - currentLightness) * SMOOTH_FACTOR;
+
+                // 更新 CSS 变量
+                updateCSSVariables(currentHue, currentSaturation, currentLightness);
+
+                requestAnimationFrame(animate);
+            }
+
+            /**
+             * 初始化默认位置（屏幕中央）
+             */
+            function initDefaultPosition() {
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight / 2;
+                targetHue = (cx / window.innerWidth) * 360;
+                targetLightness = 90 - (cy / window.innerHeight) * 75;
+                targetSaturation = 65 + (cx / window.innerWidth) * 30;
+
+                // 立即设置初始值，避免从0开始过渡
+                currentHue = targetHue;
+                currentSaturation = targetSaturation;
+                currentLightness = targetLightness;
+
+                glow.style.left = cx + 'px';
+                glow.style.top = cy + 'px';
+
+                updateCSSVariables(currentHue, currentSaturation, currentLightness);
+            }
+
+            // 事件监听
+            window.addEventListener('mousemove', handleMouseMove, { passive: true });
+            window.addEventListener('touchmove', handleTouchMove, { passive: true });
+            window.addEventListener('touchstart', handleTouchMove, { passive: true });
+
+            // 初始化
+            initDefaultPosition();
+            // 启动动画循环
+            requestAnimationFrame(animate);
+
+        })();
+    </script>
+</body>
+</html>
