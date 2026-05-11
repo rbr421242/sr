@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Something fun</title>
+  <title>随机一行 · 鼠标颜色</title>
   <style>
     :root {
       --hue: 200;
@@ -52,9 +53,23 @@
       z-index: 10;
       text-align: center;
       padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
     }
 
-    /* 显示随机文本的 p 标签 */
+    /* 标题 */
+    .title {
+      font-size: clamp(1.2rem, 3vw, 2rem);
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: hsla(var(--hue), var(--saturation), var(--lightness), 0.9);
+      text-shadow: 0 0 20px hsla(var(--hue), var(--saturation), var(--lightness), 0.4);
+      transition: color 0.1s ease-out;
+    }
+
+    /* 显示随机文本的 p 标签（内容末尾会自动加 ! ） */
     .random-text {
       font-size: clamp(1.5rem, 5vw, 2.8rem);
       font-weight: 600;
@@ -89,6 +104,7 @@
     @media (max-width: 600px) {
       .main-container {
         padding: 20px;
+        gap: 10px;
       }
       .glow {
         width: 180px;
@@ -104,7 +120,10 @@
 
   <div class="glow" id="glow"></div>
   <div class="main-container">
-    <p class="random-text" id="randomText">！</p>
+    <!-- 固定标题，文字可随意修改 -->
+    <h2 class="title">✨ 每日一言 ✨</h2>
+    <!-- 随机内容会显示在这里，末尾自动追加！ -->
+    <p class="random-text" id="randomText"></p>
   </div>
 
   <script>
@@ -119,14 +138,12 @@
       let lastParticleTime = 0;
       const PARTICLE_GAP = 35;
 
-      // 更新 CSS 变量
       function updateColors(h, s, l) {
         document.documentElement.style.setProperty('--hue', Math.round(h));
         document.documentElement.style.setProperty('--saturation', Math.round(s) + '%');
         document.documentElement.style.setProperty('--lightness', Math.round(l) + '%');
       }
 
-      // 生成粒子
       function spawnParticle(x, y) {
         const now = performance.now();
         if (now - lastParticleTime < PARTICLE_GAP) return;
@@ -142,7 +159,6 @@
         p.addEventListener('animationend', () => p.remove());
       }
 
-      // 鼠标移动
       function onMouseMove(e) {
         const x = e.clientX, y = e.clientY;
         glow.style.left = x + 'px';
@@ -155,7 +171,6 @@
         spawnParticle(x, y);
       }
 
-      // 触摸支持
       function onTouchMove(e) {
         if (e.touches.length) {
           const t = e.touches[0];
@@ -163,7 +178,6 @@
         }
       }
 
-      // 动画循环（平滑颜色过渡）
       function animate() {
         currentHue += (targetHue - currentHue) * SMOOTH;
         currentSaturation += (targetSaturation - currentSaturation) * SMOOTH;
@@ -172,7 +186,6 @@
         requestAnimationFrame(animate);
       }
 
-      // 初始位置（屏幕中央）
       function setDefaultPosition() {
         const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
         targetHue = (cx / window.innerWidth) * 360;
@@ -186,7 +199,7 @@
         updateColors(currentHue, currentSaturation, currentLightness);
       }
 
-      // 随机读取 txt 并显示（直接覆盖，无“加载中”）
+      // 随机读取并追加 !
       function loadRandomLine() {
         fetch('data.txt')
           .then(res => {
@@ -195,22 +208,26 @@
           })
           .then(text => {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+              textEl.textContent = '文件内容为空';
+              return;
+            }
             const idx = Math.floor(Math.random() * lines.length);
-            textEl.textContent = lines[idx];
+            // 核心改动：在末尾加上 !
+            textEl.textContent = lines[idx] + ' !';
           })
           .catch(err => {
             textEl.textContent = '读取失败：' + err.message;
           });
       }
 
-      // 绑定事件并启动
       window.addEventListener('mousemove', onMouseMove, { passive: true });
       window.addEventListener('touchmove', onTouchMove, { passive: true });
       window.addEventListener('touchstart', onTouchMove, { passive: true });
 
       setDefaultPosition();
       requestAnimationFrame(animate);
-      loadRandomLine();   // 最后直接读取，无初始文字
+      loadRandomLine();
     })();
   </script>
 </body>
