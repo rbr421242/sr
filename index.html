@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随机一行 · 鼠标颜色</title>
+  <style>
+    :root {
+      --hue: 200;
+      --saturation: 80%;
+      --lightness: 55%;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #0d0d0d;
+      font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: crosshair;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 鼠标光晕 */
+    .glow {
+      position: fixed;
+      pointer-events: none;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle,
+          hsla(var(--hue), var(--saturation), var(--lightness), 0.25) 0%,
+          hsla(var(--hue), var(--saturation), var(--lightness), 0.08) 40%,
+          transparent 70%);
+      transform: translate(-50%, -50%);
+      transition: background 0.15s ease-out;
+      z-index: 0;
+      will-change: left, top;
+    }
+
+    /* 文字容器 */
+    .main-container {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 40px;
+    }
+
+    /* 显示随机文本的 p 标签 */
+    .random-text {
+      font-size: clamp(1.5rem, 5vw, 2.8rem);
+      font-weight: 600;
+      line-height: 1.4;
+      color: hsl(var(--hue), var(--saturation), var(--lightness));
+      text-shadow: 0 0 40px hsla(var(--hue), var(--saturation), var(--lightness), 0.6),
+                   0 0 80px hsla(var(--hue), var(--saturation), var(--lightness), 0.3);
+      transition: color 0.1s ease-out;
+      max-width: 85vw;
+      word-break: break-word;
+    }
+
+    /* 粒子 */
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: hsl(var(--hue), var(--saturation), var(--lightness));
+      box-shadow: 0 0 12px hsla(var(--hue), var(--saturation), var(--lightness), 0.8);
+      z-index: 5;
+      animation: particleFade 0.7s ease-out forwards;
+      will-change: transform, opacity;
+    }
+
+    @keyframes particleFade {
+      0% { transform: scale(1.5); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+
+    @media (max-width: 600px) {
+      .main-container {
+        padding: 20px;
+      }
+      .glow {
+        width: 180px;
+        height: 180px;
+      }
+      .random-text {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glow" id="glow"></div>
+  <div class="main-container">
+    <p class="random-text" id="randomText"></p>
+  </div>
+
+  <script>
+    (function() {
+      const glow = document.getElementById('glow');
+      const textEl = document.getElementById('randomText');
+
+      // 颜色状态
+      let currentHue = 200, currentSaturation = 80, currentLightness = 55;
+      let targetHue = 200, targetSaturation = 80, targetLightness = 55;
+      const SMOOTH = 0.18;
+      let lastParticleTime = 0;
+      const PARTICLE_GAP = 35;
+
+      // 更新 CSS 变量
+      function updateColors(h, s, l) {
+        document.documentElement.style.setProperty('--hue', Math.round(h));
+        document.documentElement.style.setProperty('--saturation', Math.round(s) + '%');
+        document.documentElement.style.setProperty('--lightness', Math.round(l) + '%');
+      }
+
+      // 生成粒子
+      function spawnParticle(x, y) {
+        const now = performance.now();
+        if (now - lastParticleTime < PARTICLE_GAP) return;
+        lastParticleTime = now;
+
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.background = `hsl(${Math.round(currentHue)},${Math.round(currentSaturation)}%,${Math.round(currentLightness)}%)`;
+        p.style.boxShadow = `0 0 14px hsla(${Math.round(currentHue)},${Math.round(currentSaturation)}%,${Math.round(currentLightness)}%,0.7)`;
+        document.body.appendChild(p);
+        p.addEventListener('animationend', () => p.remove());
+      }
+
+      // 鼠标移动
+      function onMouseMove(e) {
+        const x = e.clientX, y = e.clientY;
+        glow.style.left = x + 'px';
+        glow.style.top = y + 'px';
+
+        targetHue = (x / window.innerWidth) * 360;
+        targetLightness = 90 - (y / window.innerHeight) * 75;
+        targetSaturation = 65 + (x / window.innerWidth) * 30;
+
+        spawnParticle(x, y);
+      }
+
+      // 触摸支持
+      function onTouchMove(e) {
+        if (e.touches.length) {
+          const t = e.touches[0];
+          onMouseMove({ clientX: t.clientX, clientY: t.clientY });
+        }
+      }
+
+      // 动画循环（平滑颜色过渡）
+      function animate() {
+        currentHue += (targetHue - currentHue) * SMOOTH;
+        currentSaturation += (targetSaturation - currentSaturation) * SMOOTH;
+        currentLightness += (targetLightness - currentLightness) * SMOOTH;
+        updateColors(currentHue, currentSaturation, currentLightness);
+        requestAnimationFrame(animate);
+      }
+
+      // 初始位置（屏幕中央）
+      function setDefaultPosition() {
+        const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+        targetHue = (cx / window.innerWidth) * 360;
+        targetLightness = 90 - (cy / window.innerHeight) * 75;
+        targetSaturation = 65 + (cx / window.innerWidth) * 30;
+        currentHue = targetHue;
+        currentSaturation = targetSaturation;
+        currentLightness = targetLightness;
+        glow.style.left = cx + 'px';
+        glow.style.top = cy + 'px';
+        updateColors(currentHue, currentSaturation, currentLightness);
+      }
+
+      // 随机读取 txt 并显示（直接覆盖，无“加载中”）
+      function loadRandomLine() {
+        fetch('data.txt')
+          .then(res => {
+            if (!res.ok) throw new Error('文件加载失败');
+            return res.text();
+          })
+          .then(text => {
+            const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+            if (lines.length === 0) {
+              textEl.textContent = '文件内容为空';
+              return;
+            }
+            const idx = Math.floor(Math.random() * lines.length);
+            textEl.textContent = lines[idx];
+          })
+          .catch(err => {
+            textEl.textContent = '读取失败：' + err.message;
+          });
+      }
+
+      // 绑定事件并启动
+      window.addEventListener('mousemove', onMouseMove, { passive: true });
+      window.addEventListener('touchmove', onTouchMove, { passive: true });
+      window.addEventListener('touchstart', onTouchMove, { passive: true });
+
+      setDefaultPosition();
+      requestAnimationFrame(animate);
+      loadRandomLine();   // 最后直接读取，无初始文字
+    })();
+  </script>
+</body>
+</html>
