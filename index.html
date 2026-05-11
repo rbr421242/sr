@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>随机一行 · 鼠标颜色</title>
+  <title>Something fun</title>
   <style>
     :root {
       --hue: 200;
@@ -105,7 +104,7 @@
 
   <div class="glow" id="glow"></div>
   <div class="main-container">
-    <p class="random-text" id="randomText"></p>
+    <p class="random-text" id="randomText">！</p>
   </div>
 
   <script>
@@ -196,10 +195,6 @@
           })
           .then(text => {
             const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length === 0) {
-              textEl.textContent = '文件内容为空';
-              return;
-            }
             const idx = Math.floor(Math.random() * lines.length);
             textEl.textContent = lines[idx];
           })
